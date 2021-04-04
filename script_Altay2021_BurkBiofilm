@@ -1,0 +1,260 @@
+KALLISTO
+#from internet NCBI genome or KEGG genome : download reference genome file
+
+ftp://ftp.ensemblgenomes.org/pub/bacteria/release-44/fasta/bacteria_18_collection/burkholderia_cenocepacia_j2315/cdna/
+ 
+ 
+#from internet arrayexpress or ENA : download FASTQ RNAseq files
+
+https://www.ebi.ac.uk/ena/data/view/PRJEB19669
+
+
+#on the server install kallisto:
+wget https://github.com/pachterlab/kallisto/releases/download/v0.45.0/kallisto_linux-v0.44.0.tar.gz
+tar -zxvf kallisto_linux-v0.45.0.tar.gz
+
+
+
+#on the server construct index file for the genome reference file
+/home/ozlem/kallisto_linux-v0.45.0/kallisto index -i /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa.index /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa
+
+
+
+
+#on the server run RNA expression quantitative
+gunzip ERR1856551.fastq.gz
+gunzip ERR1856552.fastq.gz
+gunzip ERR1856553.fastq.gz
+gunzip ERR1856554.fastq.gz
+gunzip ERR1856555.fastq.gz
+gunzip ERR1856556.fastq.gz
+
+
+
+
+/home/ozlem/kallisto_linux-v0.45.0/kallisto quant -i /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa.index  -o /home/ozlem/ERRbio0001 --single -l 200 -s 50 /home/ozlem/ERR1856551.fastq
+/home/ozlem/kallisto_linux-v0.45.0/kallisto quant -i /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa.index  -o /home/ozlem/ERRbio0002 --single -l 200 -s 50 /home/ozlem/ERR1856552.fastq
+
+/home/ozlem/kallisto_linux-v0.45.0/kallisto quant -i /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa.index  -o /home/ozlem/ERRbio0003 --single -l 200 -s 50 /home/ozlem/ERR1856553.fastq
+/home/ozlem/kallisto_linux-v0.45.0/kallisto quant -i /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa.index  -o /home/ozlem/ERRexp0004 --single -l 200 -s 50 /home/ozlem/ERR1856554.fastq
+
+/home/ozlem/kallisto_linux-v0.45.0/kallisto quant -i /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa.index  -o /home/ozlem/ERRexp0005 --single -l 200 -s 50 /home/ozlem/ERR1856555.fastq
+/home/ozlem/kallisto_linux-v0.45.0/kallisto quant -i /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa.index  -o /home/ozlem/ERRexp0006 --single -l 200 -s 50 /home/ozlem/ERR1856556.fastq
+
+
+DESEQ2
+
+
+# install the packages and call the library
+
+install.packages('plyr', dependencies = T)
+install.packages('tidyverse', dependencies = T)
+install.packages('purrr', dependencies = T)
+library(dplyr)
+library(tidyverse)
+library(purrr)
+
+if (!require("DESeq2")) {
+  source("https://bioconductor.org/biocLite.R")
+  biocLite("DESeq2")
+}
+
+library(dplyr)
+library(tidyverse)
+library(purrr)
+library(DESeq2)
+
+
+############## Arranging the kallisto files ###################################################################################
+#set path
+setwd('C:/Users/sunjae.lee/Desktop/')
+path='C:/Users/sunjae.lee/Desktop/'
+
+# read in
+dir(path)
+folders.to.read <- list.files(path = path, pattern = 'ERR')
+files.to.read <- 'abundance.tsv'
+
+
+id <- 0
+for(i in 1:length(folders.to.read)){
+  
+  # read in the files with column the we need
+  temp.file.name <- paste0(path, folders.to.read[i], '/', files.to.read)
+  temp.df <- read.table(temp.file.name, sep = '\t', header = T, stringsAsFactors = F)[,c('target_id','est_counts','tpm')]
+  names(temp.df)[2:ncol(temp.df)] <- paste0(folders.to.read[i],'_' ,colnames(temp.df)[2:ncol(temp.df)])
+  if(class(id) == 'numeric'){
+    id <- temp.df
+    
+  } else {
+    id=merge.data.frame(id,temp.df, by= 1)
+  }
+}
+
+# remove columns with pattern = 'tpm' 
+id.counts <- id[, -grep('tpm', colnames(id))]
+
+# save csv files
+write.csv(id.counts, 'countsDF.csv')
+
+
+############ deseq2 analysis#####################################################################################################
+
+
+# create metadata
+names <- colnames(id.counts)[-1]
+condition <- rep(c('expo', 'biofilm'), each=3)
+metaData <- data.frame(condition, names)
+rownames(metaData) <- metaData$names
+
+
+# check the class of metadata
+class(metaData$bac_condition) # if this line is equal to character use the next line, if equal to factor skip
+#metaData$condition <- as.factor(metaData$condition)
+levels(metaData$bac_condition)
+
+
+# round as DESeq2 needs integers
+rownames(id.counts) <- id.counts$target_id
+id.counts <- id.counts[,-1]
+id.counts <- round(id.counts) 
+#colnames(id.counts) <- gsub('_est_counts','', colnames(id.counts))
+# create DESeq dataset
+table(colnames(id.counts) == rownames(metaData))
+
+dds <- DESeqDataSetFromMatrix(countData = id.counts,
+                              colData = metaData,
+                              design = ~ condition)
+
+dds
+
+# Set the reference level
+dds$condition <- relevel(dds$condition, ref="expo")
+dds
+
+# Run differential expression analysis
+dds2 <- DESeq(dds)
+res <- results(dds2)
+res
+summary(res)
+write.csv(res, 'resultsBurkDESeq2.csv')
+
+TIGER/MADE
+
+initCobraToolbox;
+changeCobraSolver('ibm_cplex','all');
+start_tiger('cplex')
+load('model.mat')
+
+tmodel = model
+tiger_model=cobra_to_tiger(tmodel)
+
+content1 = Cheng_readTXT('DESeq2_BiofilmToExponential.txt');
+names = strrep(content1(2:end,1),'"','');
+
+FC = [str2double(content1(2:end,3))];
+fdr = [str2double(content1(2:end,7))];
+FC(isnan(FC)) = 0;
+fdr(isnan(fdr)) = 1;
+
+made_output=made(tiger_model,FC,fdr,'gene_names',names,'log_fold_change',true);
+
+made_1_fba=fba(made_output.models{1,1})
+made_2_fba=fba(made_output.models{1,2})
+
+
+
+[MINFLUX1,MAXFLUX1]=fva(made_output.models{1,1})
+[MINFLUX2,MAXFLUX2]=fva(made_output.models{1,2})
+
+
+save('madeburk')
+
+%%%%%%%%%%%%%%%%%%%%%
+
+
+
+Synthetic lethality analysis
+
+initCobraToolbox
+changeCobraSolver('ibm_cplex','all');
+
+
+load('model.mat');
+
+bmodel = model;
+Jsl_index =1:1667
+Jsl_index =reshape(Jsl_index,[1667,1])
+combinations_JslBc = nchoosek(Jsl_index,1);
+
+cutoff = 1e-5;
+allGrowth_JslBc = zeros(size(combinations_JslBc,1),1);
+FBA_obj_JslBc=[];
+FBA_fluxes_JslBc=[];
+combs_JslBc = [];
+
+
+
+tic;
+h = waitbar(0,'Please wait JslBc...');
+for i = 1:size(combinations_JslBc,1)
+    waitbar(i/size(combinations_JslBc,1))
+    iRxnsToClose = bmodel.rxns(combinations_JslBc(i,:));
+    tmodel = changeRxnBounds(bmodel,iRxnsToClose,0,'u');
+    tmodel = changeRxnBounds(tmodel,iRxnsToClose,0,'l');
+    iSol_JslBc = optimizeCbModel(tmodel);
+        if ~isempty (iSol_JslBc.f) && iSol_JslBc.f<cutoff
+			allGrowth_JslBc(i) = iSol_JslBc.f;
+            combs_JslBc = [combs_JslBc; combinations_JslBc(i,:)];
+            FBA_obj_JslBc = [FBA_obj_JslBc; iSol_JslBc.f];
+            FBA_fluxes_JslBc=[FBA_fluxes_JslBc, iSol_JslBc.x;];
+            
+        end
+end
+close(h);
+toc
+
+comb_IDs_JslBc = model.rxns(combs_JslBc);
+comb_Names_JslBc= model.rxnNames(combs_JslBc);
+
+save('JslBc.mat')
+
+
+bmodel = model;
+Jdl_index =1:1667
+Jdl_index =reshape(Jdl_index,[1667,1])
+Jdl_index(combs_JslBc)= []
+combinations_JdlBc = nchoosek(Jdl_index,2);
+
+cutoff = 1e-5;
+allGrowth_JdlBc = zeros(size(combinations_JdlBc,1),1);
+FBA_obj_JdlBc=[];
+FBA_fluxes_JdlBc=[];
+combs_JdlBc = [];
+
+
+
+tic;
+h = waitbar(0,'Please wait JdlBc...');
+for i = 1:size(combinations_JdlBc,1)
+    waitbar(i/size(combinations_JdlBc,1))
+    iRxnsToClose = bmodel.rxns(combinations_JdlBc(i,:));
+    tmodel = changeRxnBounds(bmodel,iRxnsToClose,0,'u');
+    tmodel = changeRxnBounds(tmodel,iRxnsToClose,0,'l');
+    iSol_JdlBc = optimizeCbModel(tmodel);
+        if ~isempty (iSol_JdlBc.f) && iSol_JdlBc.f<cutoff
+			allGrowth_JdlBc(i) = iSol_JdlBc.f;
+            combs_JdlBc = [combs_JdlBc; combinations_JdlBc(i,:)];
+            FBA_obj_JdlBc = [FBA_obj_JdlBc; iSol_JdlBc.f];
+            FBA_fluxes_JdlBc=[FBA_fluxes_JdlBc, iSol_JdlBc.x;];
+            
+        end
+end
+close(h);
+toc
+
+comb_IDs_JdlBc = model.rxns(combs_JdlBc);
+comb_Names_JdlBc= model.rxnNames(combs_JdlBc);
+save('JdlBc.mat')
+
+
