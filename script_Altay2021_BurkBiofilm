@@ -11,12 +11,12 @@ https://www.ebi.ac.uk/ena/data/view/PRJEB19669
 
 #on the server install kallisto:
 wget https://github.com/pachterlab/kallisto/releases/download/v0.45.0/kallisto_linux-v0.44.0.tar.gz
-tar -zxvf kallisto_linux-v0.45.0.tar.gz
+tar -zxvf kallisto_linux-v0.46.1.tar.gz
 
 
 
 #on the server construct index file for the genome reference file
-/home/ozlem/kallisto_linux-v0.45.0/kallisto index -i /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa.index /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa
+/home/ozlem/kallisto_linux-v0.46.1/kallisto index -i /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa.index /home/ozlem/Burkholderia_cenocepacia_j2315.ASM948v1.cdna.all.fa
 
 
 
