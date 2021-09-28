@@ -10,7 +10,7 @@ https://www.ebi.ac.uk/ena/data/view/PRJEB19669
 
 
 #on the server install kallisto:
-wget https://github.com/pachterlab/kallisto/releases/download/v0.45.0/kallisto_linux-v0.44.0.tar.gz
+wget https://github.com/pachterlab/kallisto/releases/download/v0.46.1/kallisto_linux-v0.46.1.tar.gz
 tar -zxvf kallisto_linux-v0.46.1.tar.gz
 
 
@@ -67,8 +67,8 @@ library(DESeq2)
 
 ############## Arranging the kallisto files ###################################################################################
 #set path
-setwd('C:/Users/sunjae.lee/Desktop/')
-path='C:/Users/sunjae.lee/Desktop/'
+setwd('C:/Users/havva.altay/Desktop/')
+path='C:/Users/havva.altay/Desktop/'
 
 # read in
 dir(path)
